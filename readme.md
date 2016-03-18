@@ -1,3 +1,5 @@
+MB TEST 1-2-3
+
 ARM Trusted Firmware - version 1.2
 ==================================
 
