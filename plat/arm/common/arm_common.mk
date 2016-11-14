@@ -133,8 +133,12 @@ BL2_SOURCES		+=	drivers/io/io_fip.c				\
 				plat/arm/common/arm_io_storage.c		\
 				plat/common/${ARCH}/platform_up_stack.S
 ifeq (${LOAD_IMAGE_V2},1)
-BL2_SOURCES		+=	plat/arm/common/${ARCH}/arm_bl2_mem_params_desc.c\
-				plat/arm/common/arm_image_load.c		\
+ifeq (${JUNO_AARCH32_EL3_RUNTIME},1)
+BL2_SOURCES		+=	plat/arm/common/aarch32/arm_bl2_mem_params_desc.c
+else
+BL2_SOURCES		+=	plat/arm/common/${ARCH}/arm_bl2_mem_params_desc.c
+endif
+BL2_SOURCES		+=	plat/arm/common/arm_image_load.c		\
 				common/desc_image_load.c
 endif
 

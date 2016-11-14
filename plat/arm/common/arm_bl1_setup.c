@@ -44,6 +44,7 @@
 #pragma weak bl1_plat_arch_setup
 #pragma weak bl1_platform_setup
 #pragma weak bl1_plat_sec_mem_layout
+#pragma weak plat_arm_bl1_prepare_exit
 
 
 /* Data structure which holds the extents of the trusted SRAM for BL1*/
@@ -145,7 +146,7 @@ void bl1_platform_setup(void)
 	arm_bl1_platform_setup();
 }
 
-void bl1_plat_prepare_exit(entry_point_info_t *ep_info)
+void plat_arm_bl1_prepare_exit(entry_point_info_t *ep_info)
 {
 #if !ARM_DISABLE_TRUSTED_WDOG
 	/* Disable watchdog before leaving BL1 */
@@ -162,4 +163,9 @@ void bl1_plat_prepare_exit(entry_point_info_t *ep_info)
 	dsbsy();
 	sev();
 #endif
+}
+
+void bl1_plat_prepare_exit(entry_point_info_t *ep_info)
+{
+	plat_arm_bl1_prepare_exit(ep_info);
 }

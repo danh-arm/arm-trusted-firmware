@@ -43,6 +43,7 @@
 struct bl31_params;
 struct meminfo;
 struct image_info;
+struct entry_point_info;
 
 #define ARM_CASSERT_MMAP						\
 	CASSERT((ARRAY_SIZE(plat_arm_mmap) + ARM_BL_REGIONS)		\
@@ -157,6 +158,7 @@ void arm_bl2_platform_setup(void);
 void arm_bl2_plat_arch_setup(void);
 uint32_t arm_get_spsr_for_bl32_entry(void);
 uint32_t arm_get_spsr_for_bl33_entry(void);
+int arm_bl2_handle_post_image_load(unsigned int image_id);
 
 /* BL2U utility functions */
 void arm_bl2u_early_platform_setup(struct meminfo *mem_layout,
@@ -224,5 +226,7 @@ const mmap_region_t *plat_arm_get_mmap(void);
 
 /* Allow platform to override psci_pm_ops during runtime */
 const plat_psci_ops_t *plat_arm_psci_override_pm_ops(plat_psci_ops_t *ops);
+
+void plat_arm_bl1_prepare_exit(struct entry_point_info *ep_info);
 
 #endif /* __PLAT_ARM_H__ */

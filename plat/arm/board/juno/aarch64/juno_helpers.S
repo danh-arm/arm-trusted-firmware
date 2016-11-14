@@ -34,12 +34,18 @@
 #include <cortex_a53.h>
 #include <cortex_a57.h>
 #include <cortex_a72.h>
+#include <cpu_macros.S>
+#include <css_def.h>
 #include <v2m_def.h>
 #include "../juno_def.h"
 
 
 	.globl	plat_reset_handler
 	.globl	plat_arm_calc_core_pos
+#if JUNO_AARCH32_EL3_RUNTIME
+	.globl	plat_get_my_entrypoint
+	.globl	juno_reset_to_aarch32_state
+#endif
 
 #define JUNO_REVISION(rev)	REV_JUNO_R##rev
 #define JUNO_HANDLER(rev)	plat_reset_handler_juno_r##rev
@@ -213,3 +219,73 @@ endfunc plat_reset_handler
 func plat_arm_calc_core_pos
 	b	css_calc_core_pos_swap_cluster
 endfunc plat_arm_calc_core_pos
+
+#if JUNO_AARCH32_EL3_RUNTIME
+	/* ---------------------------------------------------------------------
+	 * uintptr_t plat_get_my_entrypoint (void);
+	 *
+	 * Main job of this routine is to distinguish between a cold and a warm
+	 * boot. On JUNO platform, this distinction is based on the contents of
+	 * the Trusted Mailbox. It is initialised to zero by the SCP before the
+	 * AP cores are released from reset. Therefore, a zero mailbox means
+	 * it's a cold reset. If it is a warm boot then a request is issued
+	 * to make a warm reset in AArch32 state.
+	 *
+	 * This functions returns the contents of the mailbox, i.e.:
+	 *  - 0 for a cold boot;
+	 *  - request warm reset in AArch32 state for warm boot case;
+	 * ---------------------------------------------------------------------
+	 */
+func plat_get_my_entrypoint
+	mov_imm	x0, PLAT_ARM_TRUSTED_MAILBOX_BASE
+	ldr	x0, [x0]
+	cbz	x0, return
+	ldr	x0, =juno_reset_to_aarch32_state
+return:
+	ret
+endfunc plat_get_my_entrypoint
+
+
+/*
+ * For movw and movt instructions the upper 4 bits,
+ * in the imm16, are embedded in bits[19:16].
+ */
+#define AARCH32_ADDR_UPPER_16	(((BL32_BASE & 0x0FFF0000) >> 16) |	\
+				((BL32_BASE & 0xF0000000) >> 12))
+#define AARCH32_ADDR_LOWER_16	((BL32_BASE & 0xFFF) |	\
+				((BL32_BASE & 0xF000) << 4))
+
+/*
+ * This function puts the shim code at HI-VEC (0xFFFF0000)
+ * address that loads x0 with the entrypoint address for
+ * BL32 (a.k.a SP_MIN) for AArch32 state. And then request
+ * warm reset in AArch32 state by writing into RMR_EL3.
+ */
+func juno_reset_to_aarch32_state
+	/* opcode "movw r0 #imm16" to move lower 16 bits in r0 in AArch32 state*/
+	ldr	w0, =(0xe3000000 | AARCH32_ADDR_LOWER_16)
+
+	/* opcode "movt r0 #imm16" to move upper 16 bits in r0 in AArch32 state*/
+	ldr	w1, =(0xe3400000 | AARCH32_ADDR_UPPER_16)
+
+	/* opcode "bx r0" to branch using r0 in AArch32 state*/
+	ldr	w2, =0xe12fff10
+
+	/* Write the above opcodes at HI-VECTOR location*/
+	ldr	x3, =HI_VECTOR_BASE
+	str	w0, [x3]
+	str	w1, [x3, 4]
+	str	w2, [x3, 8]
+
+	/* Request warm reset in AArch32 state*/
+	mov	x3, #RMR_EL3_RR_BIT
+	dsb	sy
+	msr	rmr_el3, x3
+	isb
+loop:
+	wfi
+	b	loop
+endfunc juno_reset_to_aarch32_state
+
+#endif /* JUNO_AARCH32_EL3_RUNTIME */
+
